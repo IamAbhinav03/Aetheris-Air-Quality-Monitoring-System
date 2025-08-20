@@ -1,0 +1,415 @@
+# substitutions:
+#   id: "test-susbstitution"
+
+
+esphome:
+  name: airnode-00
+  friendly_name: Air Node V1
+  area: mkspace-007
+
+esp32:
+  board: esp32doit-devkit-v1
+  framework:
+    type: arduino
+
+logger:
+  # Change level to WARN in prod
+  level: DEBUG
+
+api:
+ota:
+  - platform: esphome
+    password: ""
+
+wifi:
+  ssid: !secret ssid
+  password: !secret password
+
+mqtt:
+  broker: 10.42.206.199
+  port: 1883 # 1883 is the default mqtt port, change if you are needed
+  username: mkspace-007
+  password: !secret mqtt_password
+  birth_message:
+    topic: "status"
+    payload: "airnode-00 is online" # meassage to send when the esp is alive
+  will_message:
+    topic: "status"
+    payload: "airnode-00 is offline"
+
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: "Asia/Kolkata" # change to your timezone'
+
+uart:
+  id: pms_uart
+  tx_pin: GPIO17
+  rx_pin: GPIO16
+  baud_rate: 9600
+
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  scan: true
+
+# Example sensors — replace with your actual ones
+sensor:
+  - platform: pmsx003
+    type: PMSX003
+    uart_id: pms_uart
+    pm_1_0:
+      id: pm1
+      name: "PM1.0"
+      on_value:
+        then:
+          - mqtt.publish:
+              topic: "airnode-00/pm1"
+              payload: !lambda "return to_string(id(pm1).state);"
+    pm_2_5:
+      id: pm25
+      name: "PM2.5"
+      on_value:
+        then:
+          - mqtt.publish:
+              topic: "airnode-00/pm25"
+              payload: !lambda "return to_string(id(pm25).state);"
+    pm_10_0:
+      id: pm10
+      name: "PM10.0"
+      on_value:
+        then:
+          - mqtt.publish:
+              topic: "airnode-00/pm10"
+              payload: !lambda "return to_string(id(pm10).state);"
+    update_interval: 60s
+
+  - platform: sgp30
+    eco2:
+      id: eco2
+      name: "eCO2"
+      on_value:
+        then:
+          - mqtt.publish:
+              topic: "airnode-00/eco2"
+              payload: !lambda "return to_string(id(eco2).state);"
+    tvoc:
+      id: tvoc
+      name: "TVOC"
+      on_value:
+        then:
+          - mqtt.publish:
+              topic: "airnode-00/tvoc"
+              payload: !lambda "return to_string(id(tvoc).state);"
+    update_interval: 60s
+
+  - platform: bme680
+    address: 0x77
+    temperature:
+      id: temp
+      name: "Temperature"
+      on_value:
+        then:
+          - mqtt.publish:
+              topic: "airnode-00/temperature"
+              payload: !lambda "return to_string(id(temp).state);"
+
+    humidity:
+      id: hum
+      name: "Humidity"
+      on_value:
+        then:
+          - mqtt.publish:
+              topic: "airnode-00/humidity"
+              payload: !lambda "return to_string(id(hum).state);"
+    update_interval: 60s
+
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    id: wifi_signal_db
+    update_interval: 30s
+
+# Page selector
+globals:
+  - id: page
+    type: int
+    restore_value: no
+    initial_value: "0"
+
+font:
+  - file: "fonts/profont17.bdf"
+    id: pro_font17
+    size: 17
+  - file: "fonts/profont15.bdf"
+    id: pro_font15
+    size: 15
+  - file: "fonts/profont12.bdf"
+    id: pro_font12
+    size: 12
+  - file: "fonts/profont10.bdf"
+    id: pro_font10
+    size: 10
+    glyphs:
+      [
+        " ",
+        "!",
+        "%",
+        "(",
+        ")",
+        "+",
+        "-",
+        ".",
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        ":",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "H",
+        "I",
+        "J",
+        "K",
+        "L",
+        "M",
+        "N",
+        "O",
+        "P",
+        "Q",
+        "R",
+        "S",
+        "T",
+        "U",
+        "V",
+        "W",
+        "X",
+        "Y",
+        "Z",
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "p",
+        "q",
+        "r",
+        "s",
+        "t",
+        "u",
+        "v",
+        "w",
+        "x",
+        "y",
+        "z",
+        "°",
+        "µ",
+        "³",
+        "/",
+      ]
+
+display:
+  - platform: ssd1306_i2c
+    id: my_display
+    model: "SH1106 128x64"
+    address: 0x3C
+    update_interval: 1s
+    pages:
+      # ---------------------------
+      - id: page_pm
+        lambda: |-
+          // sizes
+          int W = it.get_width();
+          int H = it.get_height();
+          // draw vertical separators for 3 columns (top area only)
+          int top_h = 48; // bottom bar starts at y=48
+          int col_w = W / 3;
+          it.line(col_w, 0, col_w, top_h - 1);
+          it.line(2 * col_w, 0, 2 * col_w, top_h - 1);
+
+          // Column centers
+          int cx0 = col_w/2;
+          int cx1 = col_w + col_w/2;
+          int cx2 = 2*col_w + col_w/2;
+
+          // Column headings
+          it.print(cx0, 4, id(pro_font10), TextAlign::TOP_CENTER, "PM1.0");
+          it.print(cx1, 4, id(pro_font10), TextAlign::TOP_CENTER, "PM2.5");
+          it.print(cx2, 4, id(pro_font10), TextAlign::TOP_CENTER, "PM10");
+
+          // Values (use .has_state() to avoid NaN before sensors initialize)
+          it.printf(cx0, 18, id(pro_font12), TextAlign::TOP_CENTER, "%.1f", id(pm1).has_state() ? id(pm1).state : 0.0);
+          it.printf(cx1, 18, id(pro_font12), TextAlign::TOP_CENTER, "%.1f", id(pm25).has_state() ? id(pm25).state : 0.0);
+          it.printf(cx2, 18, id(pro_font12), TextAlign::TOP_CENTER, "%.1f", id(pm10).has_state() ? id(pm10).state : 0.0);
+
+          it.print(cx0, 30, id(pro_font10), TextAlign::TOP_CENTER, "µg/m3");
+          it.print(cx1, 30, id(pro_font10), TextAlign::TOP_CENTER, "µg/m3");
+          it.print(cx2, 30, id(pro_font10), TextAlign::TOP_CENTER, "µg/m3");
+
+          // ---- shared bottom bar ----
+          it.line(0, 48, W - 1, 48);
+
+          // AQI text (simple categorization by PM2.5)
+          const char *aqitxt = "AQI --";
+          if (id(pm25).has_state()) {
+            float v = id(pm25).state;
+            if (v <= 12.0) aqitxt = "AQI Good";
+            else if (v <= 35.4) aqitxt = "AQI Moderate";
+            else if (v <= 55.4) aqitxt = "AQI Unhealthy SG";
+            else if (v <= 150.4) aqitxt = "AQI Unhealthy";
+            else if (v <= 250.4) aqitxt = "AQI Very Unhealthy";
+            else aqitxt = "AQI Hazardous";
+          }
+          it.print(2, 52, id(pro_font10), aqitxt);
+
+          // Time and date (center)
+          // char tbuf[9];
+          // id(sntp_time).strftime(tbuf, sizeof(tbuf), "%H:%M:%S");
+          // it.print(W/2, 50, id(pro_font10), TextAlign::TOP_CENTER, tbuf);
+          // char dbuf[7];
+          // id(sntp_time).strftime(dbuf, sizeof(dbuf), "%m.%d");
+          // it.print(W/2, 60, id(pro_font10), TextAlign::TOP_CENTER, dbuf);
+
+          // WiFi signal bars on right
+          int bars = 0;
+          if (id(wifi_signal_db).has_state()) {
+            float dbm = id(wifi_signal_db).state;
+            if (dbm > -50.0) bars = 4;
+            else if (dbm > -60.0) bars = 3;
+            else if (dbm > -70.0) bars = 2;
+            else if (dbm > -80.0) bars = 1;
+            else bars = 0;
+          }
+          int bx = W - 22; // bar group left
+          for (int i = 0; i < 4; i++) {
+            int bar_h = 3 + i * 3;
+            int by = 63 - bar_h; // bottom align
+            if (i < bars) it.filled_rectangle(bx + i * 4, by, 3, bar_h);
+            else it.rectangle(bx + i * 4, by, 3, bar_h);
+          }
+
+      # ---------------------------
+      - id: page_sgp
+        lambda: |-
+          int W = it.get_width();
+          // show SGP30 values in two columns (eCO2 and TVOC)
+          int col_w = W / 2;
+          int cx0 = col_w/2;
+          int cx1 = col_w + col_w/2;
+
+          it.print(cx0, 4, id(pro_font10), TextAlign::TOP_CENTER, "eCO2");
+          it.printf(cx0, 18, id(pro_font12), TextAlign::TOP_CENTER, "%.0f", id(eco2).has_state() ? id(eco2).state : 0.0);
+          it.print(cx0, 30, id(pro_font10), TextAlign::TOP_CENTER, "ppm");
+
+          it.print(cx1, 4, id(pro_font10), TextAlign::TOP_CENTER, "TVOC");
+          it.printf(cx1, 18, id(pro_font12), TextAlign::TOP_CENTER, "%.1f", id(tvoc).has_state() ? id(tvoc).state : 0.0);
+          it.print(cx1, 30, id(pro_font10), TextAlign::TOP_CENTER, "ppb");
+
+          // bottom bar (same as page_pm)
+          it.line(0, 48, W - 1, 48);
+          const char *aqitxt = "AQI --";
+          if (id(pm25).has_state()) {
+            float v = id(pm25).state;
+            if (v <= 12.0) aqitxt = "AQI Good";
+            else if (v <= 35.4) aqitxt = "AQI Moderate";
+            else if (v <= 55.4) aqitxt = "AQI Unhealthy SG";
+            else if (v <= 150.4) aqitxt = "AQI Unhealthy";
+            else if (v <= 250.4) aqitxt = "AQI Very Unhealthy";
+            else aqitxt = "AQI Hazardous";
+          }
+          it.print(2, 52, id(pro_font10), aqitxt);
+          // char tbuf[9]; id(sntp_time).strftime(tbuf, sizeof(tbuf), "%H:%M:%S");
+          // it.print(W/2, 50, id(pro_font10), TextAlign::TOP_CENTER, tbuf);
+          // char dbuf[7]; id(sntp_time).strftime(dbuf, sizeof(dbuf), "%m.%d");
+          // it.print(W/2, 60, id(pro_font10), TextAlign::TOP_CENTER, dbuf);
+          int bars = 0;
+          if (id(wifi_signal_db).has_state()) {
+            float dbm = id(wifi_signal_db).state;
+            if (dbm > -50.0) bars = 4;
+            else if (dbm > -60.0) bars = 3;
+            else if (dbm > -70.0) bars = 2;
+            else if (dbm > -80.0) bars = 1;
+            else bars = 0;
+          }
+          int bx = W - 22;
+          for (int i = 0; i < 4; i++) {
+            int bar_h = 3 + i * 3;
+            int by = 63 - bar_h;
+            if (i < bars) it.filled_rectangle(bx + i * 4, by, 3, bar_h);
+            else it.rectangle(bx + i * 4, by, 3, bar_h);
+          }
+
+      # ---------------------------
+      - id: page_env
+        lambda: |-
+          int W = it.get_width();
+
+          // Temp and humidity stacked (large)
+          it.print(W/4, 4, id(pro_font10), TextAlign::TOP_CENTER, "Temperature");
+          it.printf(W/4, 18, id(pro_font12), TextAlign::TOP_CENTER, "%.2f", id(temp).has_state() ? id(temp).state : 0.0);
+          it.print(W/4, 30, id(pro_font10), TextAlign::TOP_CENTER, "°C");
+
+          it.print(3*W/4, 4, id(pro_font10), TextAlign::TOP_CENTER, "Humidity");
+          it.printf(3*W/4, 18, id(pro_font12), TextAlign::TOP_CENTER, "%.1f", id(hum).has_state() ? id(hum).state : 0.0);
+          it.print(3*W/4, 30, id(pro_font10), TextAlign::TOP_CENTER, "%");
+
+          // bottom bar (same)
+          it.line(0, 48, W - 1, 48);
+          const char *aqitxt = "AQI --";
+          if (id(pm25).has_state()) {
+            float v = id(pm25).state;
+            if (v <= 12.0) aqitxt = "AQI Good";
+            else if (v <= 35.4) aqitxt = "AQI Moderate";
+            else if (v <= 55.4) aqitxt = "AQI Unhealthy SG";
+            else if (v <= 150.4) aqitxt = "AQI Unhealthy";
+            else if (v <= 250.4) aqitxt = "AQI Very Unhealthy";
+            else aqitxt = "AQI Hazardous";
+          }
+          it.print(2, 52, id(pro_font10), aqitxt);
+          // char tbuf[9]; id(sntp_time).strftime(tbuf, sizeof(tbuf), "%H:%M:%S");
+          // it.print(W/2, 50, id(pro_font10), TextAlign::TOP_CENTER, tbuf);
+          // char dbuf[7]; id(sntp_time).strftime(dbuf, sizeof(dbuf), "%m.%d");
+          // it.print(W/2, 60, id(pro_font10), TextAlign::TOP_CENTER, dbuf);
+          int bars = 0;
+          if (id(wifi_signal_db).has_state()) {
+            float dbm = id(wifi_signal_db).state;
+            if (dbm > -50.0) bars = 4;
+            else if (dbm > -60.0) bars = 3;
+            else if (dbm > -70.0) bars = 2;
+            else if (dbm > -80.0) bars = 1;
+            else bars = 0;
+          }
+          int bx = W - 22;
+          for (int i = 0; i < 4; i++) {
+            int bar_h = 3 + i * 3;
+            int by = 63 - bar_h;
+            if (i < bars) it.filled_rectangle(bx + i * 4, by, 3, bar_h);
+            else it.rectangle(bx + i * 4, by, 3, bar_h);
+          }
+
+# --- cycle pages every 8s (rotate through page_pm -> page_sgp -> page_env) ---
+interval:
+  - interval: 8s
+    then:
+      - display.page.show_next: my_display
+      - component.update: my_display
