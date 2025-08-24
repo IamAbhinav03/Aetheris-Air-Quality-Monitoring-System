@@ -27,7 +27,7 @@ wifi:
 
 mqtt:
 broker: 10.42.206.199
-  port: 1883 # 1883 is the default mqtt port, change if you are needed
+port: 1883 # 1883 is the default mqtt port, change if you are needed
   username: mkspace-007
   password: !secret mqtt_password
   birth_message:
@@ -414,9 +414,9 @@ interval:
     - mqtt.publish_json:
       topic: airnode-00/state
       payload: |-
-        root["pm1"] = id(pm1).state
-        root["pm25"] = id(pm25).state
-        root["pm10"] = id(pm10).state
+        root["pm1"] = id(pm1).state;
+        root["pm25"] = id(pm25).state;
+        root["pm10"] = id(pm10).state;
         root["eco2"] = id(eco2).state;
         root["tvoc"] = id(tvoc).state;
         root["temperature"] = id(temp).state;

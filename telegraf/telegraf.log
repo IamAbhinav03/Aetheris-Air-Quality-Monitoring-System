@@ -12,3 +12,28 @@
 2025-06-06T20:03:41Z I! [inputs.mqtt_consumer] Connected [tcp://localhost:1883]
 2025-06-06T20:08:57Z I! [agent] Hang on, flushing any cached metrics before shutdown
 2025-06-06T20:08:57Z I! [agent] Stopping running outputs
+2025-08-24T22:14:16Z I! Loading config: telegraf.conf
+2025-08-24T22:14:16Z I! Starting Telegraf 1.34.4 brought to you by InfluxData the makers of InfluxDB
+2025-08-24T22:14:16Z I! Available plugins: 239 inputs, 9 aggregators, 33 processors, 26 parsers, 63 outputs, 6 secret-stores
+2025-08-24T22:14:16Z I! Loaded inputs: mqtt_consumer
+2025-08-24T22:14:16Z I! Loaded aggregators:
+2025-08-24T22:14:16Z I! Loaded processors: converter regex
+2025-08-24T22:14:16Z I! Loaded secretstores:
+2025-08-24T22:14:16Z W! [31mOutputs are not used in testing mode![0m
+2025-08-24T22:14:16Z I! Tags enabled: host=dev-abhinav
+2025-08-24T22:14:16Z W! [agent] [33mThe default value of 'skip_processors_after_aggregators' will change to 'true' with Telegraf v1.40.0! If you need the current default behavior, please explicitly set the option to 'false'![0m
+2025-08-24T22:14:16Z I! [inputs.mqtt_consumer] Connected [tcp://localhost:1883]
+2025-08-24T22:14:33Z I! Loading config: telegraf.conf
+2025-08-24T22:14:33Z I! Starting Telegraf 1.34.4 brought to you by InfluxData the makers of InfluxDB
+2025-08-24T22:14:33Z I! Available plugins: 239 inputs, 9 aggregators, 33 processors, 26 parsers, 63 outputs, 6 secret-stores
+2025-08-24T22:14:33Z I! Loaded inputs: mqtt_consumer
+2025-08-24T22:14:33Z I! Loaded aggregators:
+2025-08-24T22:14:33Z I! Loaded processors: converter regex
+2025-08-24T22:14:33Z I! Loaded secretstores:
+2025-08-24T22:14:33Z I! Loaded outputs: influxdb_v2
+2025-08-24T22:14:33Z I! Tags enabled: host=dev-abhinav
+2025-08-24T22:14:33Z I! [agent] Config: Interval:10s, Quiet:false, Hostname:"dev-abhinav", Flush Interval:10s
+2025-08-24T22:14:33Z W! [agent] [33mThe default value of 'skip_processors_after_aggregators' will change to 'true' with Telegraf v1.40.0! If you need the current default behavior, please explicitly set the option to 'false'![0m
+2025-08-24T22:14:33Z I! [inputs.mqtt_consumer] Connected [tcp://localhost:1883]
+2025-08-24T22:15:02Z I! [agent] Hang on, flushing any cached metrics before shutdown
+2025-08-24T22:15:02Z I! [agent] Stopping running outputs
