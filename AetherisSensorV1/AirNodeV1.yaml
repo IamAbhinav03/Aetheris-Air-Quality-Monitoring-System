@@ -26,7 +26,7 @@ wifi:
   password: !secret password
 
 mqtt:
-  broker: 10.42.206.199
+broker: 10.42.206.199
   port: 1883 # 1883 is the default mqtt port, change if you are needed
   username: mkspace-007
   password: !secret mqtt_password
@@ -61,46 +61,46 @@ sensor:
     pm_1_0:
       id: pm1
       name: "PM1.0"
-      on_value:
-        then:
-          - mqtt.publish:
-              topic: "airnode-00/pm1"
-              payload: !lambda "return to_string(id(pm1).state);"
+      # on_value:
+      #   then:
+      #     - mqtt.publish:
+      #         topic: "airnode-00/pm1"
+      #         payload: !lambda "return to_string(id(pm1).state);"
     pm_2_5:
       id: pm25
       name: "PM2.5"
-      on_value:
-        then:
-          - mqtt.publish:
-              topic: "airnode-00/pm25"
-              payload: !lambda "return to_string(id(pm25).state);"
+    #   on_value:
+    #     then:
+    #       - mqtt.publish:
+    #           topic: "airnode-00/pm25"
+    #           payload: !lambda "return to_string(id(pm25).state);"
     pm_10_0:
       id: pm10
       name: "PM10.0"
-      on_value:
-        then:
-          - mqtt.publish:
-              topic: "airnode-00/pm10"
-              payload: !lambda "return to_string(id(pm10).state);"
+      # on_value:
+      #   then:
+      #     - mqtt.publish:
+      #         topic: "airnode-00/pm10"
+      #         payload: !lambda "return to_string(id(pm10).state);"
     update_interval: 60s
 
   - platform: sgp30
     eco2:
       id: eco2
       name: "eCO2"
-      on_value:
-        then:
-          - mqtt.publish:
-              topic: "airnode-00/eco2"
-              payload: !lambda "return to_string(id(eco2).state);"
+      # on_value:
+      #   then:
+      #     - mqtt.publish:
+      #         topic: "airnode-00/eco2"
+      #         payload: !lambda "return to_string(id(eco2).state);"
     tvoc:
       id: tvoc
       name: "TVOC"
-      on_value:
-        then:
-          - mqtt.publish:
-              topic: "airnode-00/tvoc"
-              payload: !lambda "return to_string(id(tvoc).state);"
+      # on_value:
+      #   then:
+      #     - mqtt.publish:
+      #         topic: "airnode-00/tvoc"
+      #         payload: !lambda "return to_string(id(tvoc).state);"
     update_interval: 60s
 
   - platform: bme680
@@ -108,20 +108,20 @@ sensor:
     temperature:
       id: temp
       name: "Temperature"
-      on_value:
-        then:
-          - mqtt.publish:
-              topic: "airnode-00/temperature"
-              payload: !lambda "return to_string(id(temp).state);"
+      # on_value:
+      #   then:
+      #     - mqtt.publish:
+      #         topic: "airnode-00/temperature"
+      #         payload: !lambda "return to_string(id(temp).state);"
 
     humidity:
       id: hum
       name: "Humidity"
-      on_value:
-        then:
-          - mqtt.publish:
-              topic: "airnode-00/humidity"
-              payload: !lambda "return to_string(id(hum).state);"
+      # on_value:
+      #   then:
+      #     - mqtt.publish:
+      #         topic: "airnode-00/humidity"
+      #         payload: !lambda "return to_string(id(hum).state);"
     update_interval: 60s
 
   - platform: wifi_signal
@@ -409,7 +409,19 @@ display:
 
 # --- cycle pages every 8s (rotate through page_pm -> page_sgp -> page_env) ---
 interval:
-  - interval: 8s
+  -interval: 60s
+  then:
+    - mqtt.publish_json:
+      topic: airnode-00/state
+      payload: |-
+        root["pm1"] = id(pm1).state
+        root["pm25"] = id(pm25).state
+        root["pm10"] = id(pm10).state
+        root["eco2"] = id(eco2).state;
+        root["tvoc"] = id(tvoc).state;
+        root["temperature"] = id(temp).state;
+      root["humidity"] = id(hum).state;
+- interval: 8s
     then:
       - display.page.show_next: my_display
       - component.update: my_display
