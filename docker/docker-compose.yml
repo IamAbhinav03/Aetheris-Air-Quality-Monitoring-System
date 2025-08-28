@@ -1,13 +1,61 @@
-version: '3.8'
-
 services:
   mosquitto:
     image: eclipse-mosquitto:2
     container_name: mosquitto
     ports:
-      - "1883:1883
+      - "1883:1883"
     volumes:
       - ./mosquitto/config:/mosquitto/config
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-h", "localhost", "-t", "$$SYS/#", "-C", "1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    env_file: .env
+    volumes:
+      - ./telegraf/config/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - ./telegraf/logs:/var/log/telegraf
+    depends_on:
+      influxdb:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+
+  influxdb:
+    image: influxdb:3-core
+    container_name: influxdb
+    ports:
+      - "8181:8181"
+    volumes:
+      - ./influxdb/data:/influxdb/data
+      - ./influxdb/plugins:/influxdb/plugin
+    command:
+      - influxdb3
+      - serve
+      - --node-id=node0
+      - --object-store=file
+      - --data-dir=/influxdb/data
+      - --plugin-dir=/influxdb/plugins
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8181/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  portainer:
+    image: portainer:latest
+    container_name: portainer
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # Give Portrainer access to docker
+      - ./portrainer/data:/data
     restart: unless-stopped
