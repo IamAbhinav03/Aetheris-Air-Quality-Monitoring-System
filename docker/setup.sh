@@ -5,7 +5,12 @@ set -euo pipefail
 # -o pipefaile = catch errors inside pipes
 
 # Helper: run command inside influxb container with admin token
-run influx() {}
+run_influx() {
+  docker compose exec -T -e INFLUXDB_TOKEN=$ADMIN_TOKEN influxdb3 "$@" || {
+    echo "❌ Failed: influxdb3 $*"
+    exit 1
+  }
+}
 
 echo "▶️  Starting InfluxDB..."
 docker compose up -d influxdb3
