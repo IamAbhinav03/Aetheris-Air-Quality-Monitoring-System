@@ -1,11 +1,9 @@
-# substitutions:
-#   id: "test-susbstitution"
+substitutions:
+  devicename: aetheris-${chip_id}
 
 
 esphome:
-  name: airnode-00
-  friendly_name: Air Node V1
-  area: mkspace-007
+  name: devicename
 
 esp32:
   board: esp32doit-devkit-v1
@@ -26,16 +24,16 @@ wifi:
   password: !secret password
 
 mqtt:
-broker: 10.42.206.199
+broker: 10.42.204.213
 port: 1883 # 1883 is the default mqtt port, change if you are needed
   username: mkspace-007
   password: !secret mqtt_password
   birth_message:
     topic: "status"
-    payload: "airnode-00 is online" # meassage to send when the esp is alive
+    payload: "${devicename} is online" # meassage to send when the esp is alive
   will_message:
     topic: "status"
-    payload: "airnode-00 is offline"
+    payload: "${devicename} is offline"
 
 time:
   - platform: sntp
@@ -421,7 +419,7 @@ interval:
         root["tvoc"] = id(tvoc).state;
         root["temperature"] = id(temp).state;
       root["humidity"] = id(hum).state;
-- interval: 8s
+- interval: 5s
     then:
       - display.page.show_next: my_display
       - component.update: my_display
