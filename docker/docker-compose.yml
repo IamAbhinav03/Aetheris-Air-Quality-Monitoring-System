@@ -5,9 +5,9 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      - ./mosquitto/config:/mosquitto/config
-      - ./mosquitto/data:/mosquitto/data
-      - ./mosquitto/log:/mosquitto/log
+      - ../mosquitto/config:/mosquitto/config
+      - ../mosquitto/data:/mosquitto/data
+      - ../mosquitto/log:/mosquitto/log
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "mosquitto_sub", "-h", "localhost", "-t", "$$SYS/#", "-C", "1"]
@@ -20,29 +20,36 @@ services:
     container_name: telegraf
     env_file: .env
     volumes:
-      - ./telegraf/config/telegraf.conf:/etc/telegraf/telegraf.conf:ro
-      - ./telegraf/logs:/var/log/telegraf
+      - ../telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - ../telegraf/telegraf.logs:/var/log/telegraf
     depends_on:
-      influxdb:
+      influxdb3:
         condition: service_healthy
       mosquitto:
         condition: service_healthy
 
-  influxdb:
+  influxdb3:
     image: influxdb:3-core
-    container_name: influxdb
+    container_name: influxdb3
+    user: "1000:1000"
     ports:
       - "8181:8181"
     volumes:
-      - ./influxdb/data:/influxdb/data
-      - ./influxdb/plugins:/influxdb/plugin
+      - type: bind
+        source: ../influxdb3/data
+        target: /var/lib/influxdb3/data
+      - type: bind
+        source: ../influxdb3/plugins
+        target: /var/lib/influxdb3/plugins
     command:
       - influxdb3
       - serve
       - --node-id=node0
       - --object-store=file
-      - --data-dir=/influxdb/data
-      - --plugin-dir=/influxdb/plugins
+      - --data-dir=/var/lib/influxdb3/data
+      - --plugin-dir=/var/lib/influxdb3/plugins
+      - --disable-authz=health
+
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8181/health"]
