@@ -1,4 +1,7 @@
 ./telegraf/telegraf.log
+./influxdb3/
+./mosquitto/data
+./mosquitto/log
 .venv
 .git
 *.db
