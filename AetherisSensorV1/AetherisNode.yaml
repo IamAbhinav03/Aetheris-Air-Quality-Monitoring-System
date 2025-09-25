@@ -1,9 +1,9 @@
 substitutions:
-  devicename: aetheris-${chip_id}
-
+  devicename: aetheris
 
 esphome:
-  name: devicename
+  name: ${devicename}
+  # name_add_mac_suffix: true
 
 esp32:
   board: esp32doit-devkit-v1
@@ -14,23 +14,27 @@ logger:
   # Change level to WARN in prod
   level: DEBUG
 
+# Enable Home Assistant API
 api:
+  encryption:
+    key: "vmrd46jX+ZYJm1oBfkjqXprIseP7xLwLzFX9TJ+XSLA="
+
 ota:
   - platform: esphome
-    password: ""
+    password: "22d4d5b9db89630ca033ddef820ccbf7"
 
 wifi:
   ssid: !secret ssid
   password: !secret password
 
 mqtt:
-broker: 10.42.204.213
-port: 1883 # 1883 is the default mqtt port, change if you are needed
+  broker: 10.42.204.213
+  port: 1883 # 1883 is the default mqtt port, change if you are needed
   username: mkspace-007
   password: !secret mqtt_password
   birth_message:
     topic: "status"
-    payload: "${devicename} is online" # meassage to send when the esp is alive
+    payload: "${devicename} is online" # message to send when the esp is alive
   will_message:
     topic: "status"
     payload: "${devicename} is offline"
@@ -99,6 +103,7 @@ sensor:
       #     - mqtt.publish:
       #         topic: "airnode-00/tvoc"
       #         payload: !lambda "return to_string(id(tvoc).state);"
+    store_baseline: true
     update_interval: 60s
 
   - platform: bme680
@@ -406,20 +411,21 @@ display:
           }
 
 # --- cycle pages every 8s (rotate through page_pm -> page_sgp -> page_env) ---
+# --- cycle pages every 8s (rotate through page_pm -> page_sgp -> page_env) ---
 interval:
-  -interval: 60s
-  then:
-    - mqtt.publish_json:
-      topic: airnode-00/state
-      payload: |-
-        root["pm1"] = id(pm1).state;
-        root["pm25"] = id(pm25).state;
-        root["pm10"] = id(pm10).state;
-        root["eco2"] = id(eco2).state;
-        root["tvoc"] = id(tvoc).state;
-        root["temperature"] = id(temp).state;
-      root["humidity"] = id(hum).state;
-- interval: 5s
+  - interval: 60s
+    then:
+      - mqtt.publish_json:
+          topic: airnode-00/state
+          payload: |-
+            root["pm1"] = id(pm1).state;
+            root["pm25"] = id(pm25).state;
+            root["pm10"] = id(pm10).state;
+            root["eco2"] = id(eco2).state;
+            root["tvoc"] = id(tvoc).state;
+            root["temperature"] = id(temp).state;
+            root["humidity"] = id(hum).state;
+  - interval: 5s
     then:
       - display.page.show_next: my_display
       - component.update: my_display
