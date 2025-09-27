@@ -18,10 +18,15 @@ services:
   telegraf:
     image: telegraf:latest
     container_name: telegraf
+    user: "1000:1000"
     env_file: .env
     volumes:
-      - ../telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
-      - ../telegraf/telegraf.logs:/var/log/telegraf
+      - type: bind
+        source: ../telegraf/telegraf.conf
+        target: /etc/telegraf/telegraf.conf
+      - type: bind
+        source: ../telegraf/
+        target: /var/log/telegraf
     depends_on:
       influxdb3:
         condition: service_healthy
@@ -57,6 +62,34 @@ services:
       timeout: 5s
       retries: 5
 
+  explorer:
+    image: influxdata/influxdb3-ui:1.2.0
+    container_name: influxdb3-explorer
+    pull_policy: always
+    command: ["--mode=admin"]
+    ports:
+      - "8888:80"
+
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    volumes:
+      - /var/log:/var/log
+    ports:
+      - "3100:3100"
+    command: 
+      -config.file=/etc/loki/local-config.yaml
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    restart: unless-stopped
+    
   portainer:
     image: portainer:latest
     container_name: portainer
@@ -66,3 +99,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock # Give Portrainer access to docker
       - ./portrainer/data:/data
     restart: unless-stopped
+
+volumes:
+  grafana-storage:
