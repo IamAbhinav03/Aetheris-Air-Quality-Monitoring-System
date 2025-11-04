@@ -1,5 +1,5 @@
 substitutions:
-  devicename: aetheris
+  devicename: aetheris_midnight
 
 esphome:
   name: ${devicename}
@@ -63,7 +63,6 @@ i2c:
   scl: GPIO22
   scan: true
 
-# Example sensors — replace with your actual ones
 sensor:
   - platform: pmsx003
     type: PMSX003
@@ -74,7 +73,7 @@ sensor:
       # on_value:
       #   then:
       #     - mqtt.publish:
-      #         topic: "airnode-00/pm1"
+      #         topic: "airnode-01/pm1"
       #         payload: !lambda "return to_string(id(pm1).state);"
     pm_2_5:
       id: pm25
@@ -82,7 +81,7 @@ sensor:
     #   on_value:
     #     then:
     #       - mqtt.publish:
-    #           topic: "airnode-00/pm25"
+    #           topic: "airnode_01/pm25"
     #           payload: !lambda "return to_string(id(pm25).state);"
     pm_10_0:
       id: pm10
@@ -424,7 +423,7 @@ interval:
   - interval: 15s
     then:
       - mqtt.publish_json:
-          topic: airnode-00/state
+          topic: airnode-01/state
           payload: |-
             root["pm1"] = id(pm1).state;
             root["pm25"] = id(pm25).state;
