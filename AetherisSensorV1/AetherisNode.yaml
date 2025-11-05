@@ -38,6 +38,10 @@ mqtt:
   will_message:
     topic: "status"
     payload: "${devicename} is offline"
+  on_connect:
+    logger.log: "Connected to the broker"
+  on_disconnect:
+    logger.log: "LOST CONNECTION TO THE BROKER"
 
 time:
   - platform: sntp
