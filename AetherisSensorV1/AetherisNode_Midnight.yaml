@@ -423,7 +423,7 @@ interval:
   - interval: 15s
     then:
       - mqtt.publish_json:
-          topic: airnode-01/state
+          topic: airnode/01/state
           payload: |-
             root["pm1"] = id(pm1).state;
             root["pm25"] = id(pm25).state;
