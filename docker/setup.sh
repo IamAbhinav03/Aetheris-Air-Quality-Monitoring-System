@@ -20,3 +20,10 @@ echo "✅ Admin token created."
 
 echo "▶️ Starting Mosquitto and telegraf"
 sudo docker compose up -d mosquitto telegraf explorer loki grafana
+
+echo "Setting up firewall"
+sudo ufw allow 22/tcp
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow 8181,53,631,3000,22,1883,3389/tcp
+sudo ufw enable
