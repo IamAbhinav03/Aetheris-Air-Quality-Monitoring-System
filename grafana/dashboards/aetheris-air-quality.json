@@ -676,13 +676,7 @@
         "multi": false,
         "name": "device",
         "options": [],
-        "query": {
-          "dataset": "iox",
-          "editorMode": "code",
-          "rawQuery": true,
-          "rawSql": "SELECT DISTINCT device FROM air_quality ORDER BY device",
-          "refId": "InfluxVariableQueryEditor-VariableQuery"
-        },
+        "query": "SELECT DISTINCT device FROM air_quality ORDER BY device",
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,

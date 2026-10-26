@@ -53,12 +53,14 @@ loki.process "containers" {
     max_wait_time = "3s"
     max_lines     = 128
   }
+}
 
-  stage.static_labels {
-    values = {
-      cluster = "aetheris",
-    }
-  }
+// Read stdout/stderr of every discovered container.
+loki.source.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  targets          = discovery.relabel.containers.output
+  forward_to       = [loki.process.containers.receiver]
+  refresh_interval = "10s"
 }
 
 loki.write "default" {

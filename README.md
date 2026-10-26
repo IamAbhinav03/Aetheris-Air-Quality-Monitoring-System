@@ -146,12 +146,10 @@ stdout/stderr, adds `container`, `service`, `project` and `stream` labels, and
 writes to Loki (`http://loki:3100`). Open **Aetheris · Logs** in Grafana, or use
 Explore with the Loki datasource.
 
-> **Docker Desktop note (Windows/macOS):** Alloy reads container log files from
-> `/var/lib/docker/containers`, which is not exposed by Docker Desktop's Linux
-> VM. For a full log pipeline, run the stack on a Linux host or a Linux VM
-> (including WSL2 with Docker Engine). Grafana, MQTT, Telegraf, InfluxDB and
-> the dashboards work normally on Docker Desktop; only Alloy's container-log
-> collection is affected.
+> **Docker Desktop note (Windows/macOS):** Alloy reads logs through the Docker
+> socket, so log collection works on Docker Desktop as well as on Linux. The
+> trade-off is that Alloy needs read access to `/var/run/docker.sock`; only
+> run this stack on a host you trust.
 
 ## Configuration
 
@@ -272,7 +270,7 @@ AetherisSensorV1/
 | Mosquitto `Permission denied` on the passwd file | `chmod 644 mosquitto/config/passwd` (the hash file only needs to be readable). |
 | Telegraf logs `database not found` | Wait for `aetheris-influxdb-init` to finish: `docker compose logs influxdb-init`. |
 | Grafana shows no data | Check `docker compose logs telegraf`; confirm nodes are publishing to `airnode/<id>/state`. |
-| No logs in Loki | Check `docker compose logs alloy`; see the Docker Desktop note above. |
+| No logs in Loki | Check `docker compose logs alloy`; confirm `/var/run/docker.sock` is mounted. |
 | Air node stuck on Wi-Fi | Join the `aetheris-xxxxxx` hotspot (password in `secrets.yaml`) and open <http://192.168.4.1/>. |
 | ESPHome build fails on `!secret` | Run the setup script, or copy `secrets.example.yaml` to `secrets.yaml`. |
 
