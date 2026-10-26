@@ -7,6 +7,7 @@
 #   ./scripts/fleet.sh deploy --devices devices.csv
 #   ./scripts/fleet.sh deploy --device 192.168.1.50
 #   ./scripts/fleet.sh flash --port /dev/ttyACM0
+#   ./scripts/fleet.sh firmware              # copy .bin files to AetherisSensorV1/firmware
 #
 # The first USB flash must be done on a machine that can see the serial port.
 # After that, `deploy` updates every node over Wi-Fi (OTA) using one compiled
@@ -19,6 +20,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SENSOR_DIR="$ROOT/AetherisSensorV1"
 CONFIG_FILE="fleet.yaml"
 ESPHOME_IMAGE="${ESPHOME_IMAGE:-esphome/esphome:2026.10.0}"
+# ESPHome's toolchain cache lives in a Docker volume so it survives between
+# runs and is not extracted onto a (slow, error-prone) bind mount.
+ESPHOME_CACHE_VOLUME="${ESPHOME_CACHE_VOLUME:-aetheris-esphome-cache}"
 
 COMMAND="${1:-build}"
 shift || true
@@ -48,6 +52,7 @@ run_esphome() {
   echo "    using Docker image $ESPHOME_IMAGE"
   docker run --rm \
     -v "$SENSOR_DIR:/config" \
+    -v "$ESPHOME_CACHE_VOLUME:/config/.esphome" \
     -w /config \
     "$ESPHOME_IMAGE" "$@"
 }
@@ -84,9 +89,32 @@ case "$COMMAND" in
     run_esphome run "$CONFIG_FILE" --device "$PORT" --no-logs
     ;;
 
+  firmware)
+    assert_files
+    mkdir -p "$SENSOR_DIR/firmware"
+    if command -v esphome >/dev/null 2>&1; then
+      find "$SENSOR_DIR/.esphome/build" "$SENSOR_DIR/build" -name 'firmware*.bin' \
+        -exec cp {} "$SENSOR_DIR/firmware/" \; 2>/dev/null || true
+    else
+      docker run --rm \
+        -v "$ESPHOME_CACHE_VOLUME:/cache:ro" \
+        -v "$SENSOR_DIR/firmware:/out" \
+        --entrypoint /bin/sh \
+        "$ESPHOME_IMAGE" \
+        -c 'find /cache/build -mindepth 3 -maxdepth 3 -type f -name "firmware*.bin" -exec cp {} /out/ \;'
+    fi
+    echo "    firmware copied to AetherisSensorV1/firmware"
+    if ! ls "$SENSOR_DIR/firmware"/firmware*.bin >/dev/null 2>&1; then
+      echo "No firmware found. Run build first." >&2
+      exit 1
+    fi
+    ls -lh "$SENSOR_DIR/firmware" | tail -n +2
+    ;;
+
   clean)
     rm -rf "$SENSOR_DIR/build" "$SENSOR_DIR/.esphome/build"
-    echo "    removed the ESPHome build directory"
+    docker volume rm "$ESPHOME_CACHE_VOLUME" >/dev/null 2>&1 || true
+    echo "    removed the ESPHome build directory and cache volume"
     ;;
 
   deploy)
@@ -148,7 +176,7 @@ case "$COMMAND" in
 
   *)
     echo "Unknown command: $COMMAND" >&2
-    echo "Use: build | config | deploy | flash | clean" >&2
+    echo "Use: build | config | deploy | flash | firmware | clean" >&2
     exit 1
     ;;
 esac

@@ -6,6 +6,7 @@
 #   .\scripts\fleet.ps1 deploy -DevicesFile devices.csv
 #   .\scripts\fleet.ps1 deploy -Device 192.168.1.50
 #   .\scripts\fleet.ps1 flash -Port COM5
+#   .\scripts\fleet.ps1 firmware
 #
 # The first USB flash must be done on a machine that can see the serial port.
 # After that, `deploy` updates every node over Wi-Fi (OTA) using one compiled
@@ -15,7 +16,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("build", "config", "deploy", "flash", "clean")]
+    [ValidateSet("build", "config", "deploy", "flash", "firmware", "clean")]
     [string]$Command = "build",
 
     # Single node IP/hostname (for `deploy`).
@@ -30,7 +31,10 @@ param(
     # Serial port for the first USB flash, e.g. COM5.
     [string]$Port,
 
-    [string]$EsphomeImage = "esphome/esphome:2026.10.0"
+    [string]$EsphomeImage = "esphome/esphome:2026.10.0",
+
+    # Docker volume used for ESPHome's build cache/toolchain.
+    [string]$CacheVolume = "aetheris-esphome-cache"
 )
 
 $ErrorActionPreference = "Stop"
@@ -59,7 +63,10 @@ function Invoke-Esphome {
 
     Write-Host "    using Docker image $EsphomeImage" -ForegroundColor DarkGray
     $mount = "$SensorDir`:/config"
-    & docker run --rm -v $mount -w /config $EsphomeImage @EsphomeArgs | Out-Host
+    # Keep the toolchain in a Docker volume: it survives between runs and is
+    # much faster and more reliable than extracting it onto a bind mount.
+    $cache = "${CacheVolume}:/config/.esphome"
+    & docker run --rm -v $mount -v $cache -w /config $EsphomeImage @EsphomeArgs | Out-Host
     return $LASTEXITCODE
 }
 
@@ -99,6 +106,42 @@ switch ($Command) {
         if ($code -ne 0) { throw "USB flash failed." }
     }
 
+    "firmware" {
+        Assert-Files
+        $firmwareDir = Join-Path $SensorDir "firmware"
+        New-Item -ItemType Directory -Force -Path $firmwareDir | Out-Null
+
+        $copied = 0
+        if (Test-LocalEsphome) {
+            $paths = @((Join-Path $SensorDir ".esphome\build"), (Join-Path $SensorDir "build"))
+            foreach ($path in $paths) {
+                if (Test-Path $path) {
+                    Get-ChildItem $path -Recurse -Filter "firmware*.bin" -ErrorAction SilentlyContinue | ForEach-Object {
+                        Copy-Item $_.FullName $firmwareDir -Force
+                        $copied++
+                    }
+                }
+            }
+            if ($copied -eq 0) { throw "No firmware found. Run build first." }
+        }
+        else {
+            & docker run --rm `
+                -v "${CacheVolume}:/cache:ro" `
+                -v "${firmwareDir}:/out" `
+                --entrypoint /bin/sh `
+                $EsphomeImage `
+                -c 'find /cache/build -mindepth 3 -maxdepth 3 -type f -name "firmware*.bin" -exec cp {} /out/ \;' | Out-Host
+            if ($LASTEXITCODE -ne 0) { throw "Copying firmware out of the build cache failed." }
+        }
+
+        Write-Host "    firmware copied to AetherisSensorV1\firmware" -ForegroundColor DarkGray
+        $bins = @(Get-ChildItem $firmwareDir -Filter "firmware*.bin" -ErrorAction SilentlyContinue)
+        if ($bins.Count -eq 0) { throw "No firmware found. Run build first." }
+        $bins | ForEach-Object {
+            Write-Host ("    {0}  {1:N2} MB" -f $_.Name, ($_.Length / 1MB))
+        }
+    }
+
     "clean" {
         $paths = @((Join-Path $SensorDir "build"), (Join-Path $SensorDir ".esphome\build"))
         $removed = $false
@@ -109,7 +152,8 @@ switch ($Command) {
                 $removed = $true
             }
         }
-        if (-not $removed) { Write-Host "    nothing to clean" }
+        & docker volume rm $CacheVolume 2>$null | Out-Null
+        if (-not $removed) { Write-Host "    removed the build cache (if present)" }
     }
 
     "deploy" {
