@@ -1,4 +1,72 @@
+// =============================================================================
+// Grafana Alloy — collect Docker container logs and ship them to Loki
+// =============================================================================
+
 logging {
   level  = "info"
   format = "logfmt"
+}
+
+// Discover every container on the host (including this Compose project).
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "10s"
+}
+
+// Turn Docker metadata into useful Loki labels.
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "project"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_image"]
+    target_label  = "image"
+  }
+}
+
+// A small processing stage so multiline stack traces stay together.
+loki.process "containers" {
+  forward_to = [loki.write.default.receiver]
+
+  stage.multiline {
+    firstline     = "^\\S"
+    max_wait_time = "3s"
+    max_lines     = 128
+  }
+
+  stage.static_labels {
+    values = {
+      cluster = "aetheris",
+    }
+  }
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+
+  external_labels = {
+    cluster = "aetheris",
+  }
 }

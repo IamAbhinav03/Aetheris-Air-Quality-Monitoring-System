@@ -1,0 +1,251 @@
+# =============================================================================
+# Aetheris — Air Quality Monitoring Stack
+# =============================================================================
+#   docker compose up -d
+#
+# Everything is pinned to a stable release. Copy .env.example to .env first
+# (or run ./scripts/setup.sh / .\scripts\setup.ps1) to set passwords.
+# =============================================================================
+
+name: aetheris
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # ---------------------------------------------------------------------------
+  # MQTT broker — receives telemetry from every air node.
+  # ---------------------------------------------------------------------------
+  mosquitto:
+    image: eclipse-mosquitto:2.1.2-alpine
+    container_name: aetheris-mosquitto
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+    environment:
+      MQTT_USERNAME: ${MQTT_USERNAME:-aetheris}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-change-me}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - mosquitto-data:/mosquitto/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mosquitto_sub -h 127.0.0.1 -p 1883
+          -u "$$MQTT_USERNAME" -P "$$MQTT_PASSWORD"
+          -t '$$SYS/broker/uptime' -C 1 -W 5 >/dev/null 2>&1 || exit 1
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    networks:
+      - aetheris
+
+  # ---------------------------------------------------------------------------
+  # InfluxDB 3 Core — time-series database for sensor readings.
+  # Authentication is disabled because the port is only reachable on the
+  # internal Docker network and on 127.0.0.1 of the host.
+  # ---------------------------------------------------------------------------
+  influxdb3:
+    image: influxdb:3.12.1-core
+    container_name: aetheris-influxdb3
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - serve
+      - --node-id=node0
+      - --object-store=file
+      - --data-dir=/var/lib/influxdb3/data
+      - --plugin-dir=/var/lib/influxdb3/plugins
+      - --without-auth
+    environment:
+      TZ: ${TZ:-UTC}
+    ports:
+      # Admin-only: keep this off the public internet.
+      - "127.0.0.1:${INFLUXDB_PORT:-8181}:8181"
+    volumes:
+      - influxdb3-data:/var/lib/influxdb3/data
+      - influxdb3-plugins:/var/lib/influxdb3/plugins
+    networks:
+      - aetheris
+
+  # ---------------------------------------------------------------------------
+  # One-shot bootstrap: creates the "aetheris" database exactly once.
+  # ---------------------------------------------------------------------------
+  influxdb-init:
+    image: influxdb:3.12.1-core
+    container_name: aetheris-influxdb-init
+    restart: "no"
+    logging: *default-logging
+    depends_on:
+      influxdb3:
+        condition: service_started
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        attempt=0
+        while [ "$$attempt" -lt 60 ]; do
+          attempt=$$((attempt + 1))
+          output=$$(influxdb3 create database aetheris --host http://influxdb3:8181 2>&1) && {
+            echo "$$output"
+            echo "database 'aetheris' is ready"
+            exit 0
+          }
+          case "$$output" in
+            *"already exists"*)
+              echo "database 'aetheris' already exists"
+              exit 0
+              ;;
+          esac
+          echo "waiting for InfluxDB 3 (attempt $$attempt/60): $$output"
+          sleep 2
+        done
+        echo "InfluxDB 3 did not become ready in time" >&2
+        exit 1
+    networks:
+      - aetheris
+
+  # ---------------------------------------------------------------------------
+  # Telegraf — MQTT -> InfluxDB 3 bridge.
+  # ---------------------------------------------------------------------------
+  telegraf:
+    image: telegraf:1.40.2
+    container_name: aetheris-telegraf
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      MQTT_USERNAME: ${MQTT_USERNAME:-aetheris}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-change-me}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      influxdb-init:
+        condition: service_completed_successfully
+    networks:
+      - aetheris
+
+  # ---------------------------------------------------------------------------
+  # Loki — log store. Only the containers write to it.
+  # ---------------------------------------------------------------------------
+  loki:
+    image: grafana/loki:3.7.9
+    container_name: aetheris-loki
+    restart: unless-stopped
+    logging: *default-logging
+    command: ["-config.file=/etc/loki/config.yaml"]
+    ports:
+      - "127.0.0.1:${LOKI_PORT:-3100}:3100"
+    volumes:
+      - ./loki/loki-config.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
+    networks:
+      - aetheris
+
+  # ---------------------------------------------------------------------------
+  # Alloy — tails every Docker container log and ships it to Loki.
+  # ---------------------------------------------------------------------------
+  alloy:
+    image: grafana/alloy:1.21.2
+    container_name: aetheris-alloy
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    ports:
+      - "127.0.0.1:${ALLOY_PORT:-12345}:12345"
+    volumes:
+      - ./alloy/alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy/data
+      # Read-only access lets Alloy discover containers and read their logs.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      - loki
+    networks:
+      - aetheris
+
+  # ---------------------------------------------------------------------------
+  # Grafana — dashboards and log exploration.
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:13.2.4
+    container_name: aetheris-grafana
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      TZ: ${TZ:-UTC}
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/aetheris-air-quality.json
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - influxdb3
+      - loki
+    networks:
+      - aetheris
+
+  # ---------------------------------------------------------------------------
+  # Optional admin tools:  docker compose --profile admin up -d
+  # ---------------------------------------------------------------------------
+  explorer:
+    image: influxdata/influxdb3-ui:1.11.1
+    container_name: aetheris-explorer
+    restart: unless-stopped
+    logging: *default-logging
+    profiles: ["admin"]
+    command: ["--mode=admin"]
+    ports:
+      - "127.0.0.1:${EXPLORER_PORT:-8888}:80"
+    depends_on:
+      - influxdb3
+    networks:
+      - aetheris
+
+  portainer:
+    image: portainer/portainer-ce:2.45.3
+    container_name: aetheris-portainer
+    restart: unless-stopped
+    logging: *default-logging
+    profiles: ["admin"]
+    ports:
+      - "127.0.0.1:${PORTAINER_PORT:-9000}:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - portainer-data:/data
+    networks:
+      - aetheris
+
+volumes:
+  mosquitto-data:
+  influxdb3-data:
+  influxdb3-plugins:
+  loki-data:
+  alloy-data:
+  grafana-data:
+  portainer-data:
+
+networks:
+  aetheris:
+    driver: bridge
