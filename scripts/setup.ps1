@@ -83,9 +83,6 @@ LOKI_PORT=$(Get-Setting "LOKI_PORT" "3100")
 ALLOY_PORT=$(Get-Setting "ALLOY_PORT" "12345")
 EXPLORER_PORT=$(Get-Setting "EXPLORER_PORT" "8888")
 PORTAINER_PORT=$(Get-Setting "PORTAINER_PORT" "9000")
-
-PUID=$(Get-Setting "PUID" "1000")
-PGID=$(Get-Setting "PGID" "1000")
 "@
     Write-TextFile $envPath $envContent
     Write-Host "    wrote .env"
@@ -153,6 +150,10 @@ mqtt_password: "$(ConvertTo-YamlString $env:MQTT_PASSWORD)"
 api_encryption_key: "$(New-RandomBase64 32)"
 ota_password: "$(New-RandomHex 16)"
 timezone: "$($env:TZ)"
+
+# Compatibility aliases for the older single-node YAML files
+ssid: "$(ConvertTo-YamlString $wifiSsid)"
+password: "$(ConvertTo-YamlString $wifiPassword)"
 "@
     Write-TextFile $secretsPath $secretsContent
     Write-Host "    wrote AetherisSensorV1\secrets.yaml"

@@ -74,9 +74,6 @@ LOKI_PORT=${LOKI_PORT:-3100}
 ALLOY_PORT=${ALLOY_PORT:-12345}
 EXPLORER_PORT=${EXPLORER_PORT:-8888}
 PORTAINER_PORT=${PORTAINER_PORT:-9000}
-
-PUID=${PUID:-$(id -u 2>/dev/null || echo 1000)}
-PGID=${PGID:-$(id -g 2>/dev/null || echo 1000)}
 EOF
   chmod 600 .env
   echo "    wrote .env"
@@ -137,6 +134,10 @@ mqtt_password: "$(yaml_escape "${MQTT_PASSWORD:-change-me}")"
 api_encryption_key: "$(random_b64)"
 ota_password: "$(random_hex 16)"
 timezone: "${TZ:-UTC}"
+
+# Compatibility aliases for the older single-node YAML files
+ssid: "$(yaml_escape "$WIFI_SSID")"
+password: "$(yaml_escape "$WIFI_PASSWORD")"
 EOF
   chmod 600 "$SECRETS"
   echo "    wrote $SECRETS"
