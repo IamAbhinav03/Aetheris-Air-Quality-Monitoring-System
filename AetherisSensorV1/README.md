@@ -49,6 +49,27 @@ or, on Windows:
 Both scripts use a local `esphome` if it is installed, otherwise they run the
 pinned `esphome/esphome:2026.10.0` Docker image.
 
+When Docker is used, ESPHome's toolchain is kept in the
+`aetheris-esphome-cache` Docker volume. The first build downloads the ESP-IDF
+toolchain once (about 2-3 GB); later builds reuse it. Keeping it in a
+volume also avoids slow or failing extractions on Windows bind mounts. Run the
+`clean` command to delete it.
+
+### Export the firmware binaries
+
+If you build with Docker and want the `.bin` files for ESP Web Tools or a
+manual flash, copy them out of the cache:
+
+```bash
+./scripts/fleet.sh firmware
+```
+
+```powershell
+.\scripts\fleet.ps1 firmware
+```
+
+They are written to `AetherisSensorV1/firmware/`.
+
 ## 3. Flash the first node over USB
 
 Every board needs the firmware once over USB. Use any of:

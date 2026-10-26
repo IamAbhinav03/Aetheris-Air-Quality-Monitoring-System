@@ -40,7 +40,8 @@ and MQTT are reachable from other machines by default.
 ## Quick start
 
 Requirements: Docker with the Compose plugin (Docker Desktop, Docker Engine,
-or Podman with the Docker Compose provider).
+or Podman with the Docker Compose provider) and roughly 10 GB of free disk
+space for images, volumes and logs.
 
 ```bash
 git clone https://github.com/IamAbhinav03/Aetheris-Air-Quality-Monitoring-System.git
@@ -106,6 +107,9 @@ The firmware is a **single ESPHome configuration** for the whole fleet:
 # 4. Copy the example inventory and deploy the same build over Wi-Fi
 cp AetherisSensorV1/devices.example.csv devices.csv
 ./scripts/fleet.sh deploy --devices devices.csv
+
+# Optional: copy firmware.factory.bin out of the Docker cache for ESP Web Tools
+./scripts/fleet.sh firmware
 ```
 
 Windows equivalents and the full workflow (captive portal, Improv, adding
@@ -247,7 +251,7 @@ compose.yaml                  # the whole stack
 .env.example                  # configuration template
 scripts/
   setup.sh / setup.ps1        # generate .env, MQTT password, ESPHome secrets
-  fleet.sh / fleet.ps1        # build / flash / OTA-deploy the fleet
+  fleet.sh / fleet.ps1        # build / flash / OTA-deploy the fleet / export .bin
 grafana/
   provisioning/               # datasources + dashboard provider
   dashboards/                 # provisioned dashboards
@@ -273,6 +277,7 @@ AetherisSensorV1/
 | No logs in Loki | Check `docker compose logs alloy`; confirm `/var/run/docker.sock` is mounted. |
 | Air node stuck on Wi-Fi | Join the `aetheris-xxxxxx` hotspot (password in `secrets.yaml`) and open <http://192.168.4.1/>. |
 | ESPHome build fails on `!secret` | Run the setup script, or copy `secrets.example.yaml` to `secrets.yaml`. |
+| Docker Desktop reports `unable to start` or `read-only file system` | Free disk space on the host, then restart Docker Desktop. A full disk makes the Docker VM read-only. |
 
 ## License
 
