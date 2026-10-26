@@ -100,14 +100,16 @@ switch ($Command) {
     }
 
     "clean" {
-        $buildDir = Join-Path $SensorDir ".esphome\build"
-        if (Test-Path $buildDir) {
-            Remove-Item -Recurse -Force $buildDir
-            Write-Host "    removed $buildDir"
+        $paths = @((Join-Path $SensorDir "build"), (Join-Path $SensorDir ".esphome\build"))
+        $removed = $false
+        foreach ($path in $paths) {
+            if (Test-Path $path) {
+                Remove-Item -Recurse -Force $path
+                Write-Host "    removed $path"
+                $removed = $true
+            }
         }
-        else {
-            Write-Host "    nothing to clean"
-        }
+        if (-not $removed) { Write-Host "    nothing to clean" }
     }
 
     "deploy" {

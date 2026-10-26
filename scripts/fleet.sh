@@ -85,8 +85,8 @@ case "$COMMAND" in
     ;;
 
   clean)
-    rm -rf "$SENSOR_DIR/.esphome/build"
-    echo "    removed .esphome/build"
+    rm -rf "$SENSOR_DIR/build" "$SENSOR_DIR/.esphome/build"
+    echo "    removed the ESPHome build directory"
     ;;
 
   deploy)
