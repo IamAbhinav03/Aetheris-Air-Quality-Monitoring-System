@@ -1,0 +1,14 @@
+apiVersion: 1
+
+providers:
+  - name: Aetheris
+    orgId: 1
+    folder: Aetheris
+    folderUid: aetheris
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

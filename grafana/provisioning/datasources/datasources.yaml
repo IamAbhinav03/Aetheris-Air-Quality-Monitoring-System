@@ -1,0 +1,37 @@
+apiVersion: 1
+
+# Datasources are deleted on startup only if they were removed from this file.
+deleteDatasources:
+  - name: InfluxDB
+    orgId: 1
+  - name: Loki
+    orgId: 1
+
+datasources:
+  - name: InfluxDB
+    uid: aetheris-influxdb
+    type: influxdb
+    access: proxy
+    url: http://influxdb3:8181
+    isDefault: true
+    editable: false
+    jsonData:
+      # "SQL" makes Grafana use the FlightSQL/gRPC API of InfluxDB 3.
+      version: SQL
+      dbName: aetheris
+      httpMode: POST
+      insecureGrpc: true
+      tlsSkipVerify: true
+    secureJsonData:
+      # Authentication is disabled on the private Docker network.
+      token: ""
+
+  - name: Loki
+    uid: aetheris-loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      maxLines: 5000
+      timeout: 60
