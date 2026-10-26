@@ -49,7 +49,7 @@ function Invoke-Esphome {
     if (Test-LocalEsphome) {
         Push-Location $SensorDir
         try {
-            & esphome @EsphomeArgs
+            & esphome @EsphomeArgs | Out-Host
             return $LASTEXITCODE
         }
         finally {
@@ -59,7 +59,7 @@ function Invoke-Esphome {
 
     Write-Host "    using Docker image $EsphomeImage" -ForegroundColor DarkGray
     $mount = "$SensorDir`:/config"
-    & docker run --rm -v $mount -w /config $EsphomeImage @EsphomeArgs
+    & docker run --rm -v $mount -w /config $EsphomeImage @EsphomeArgs | Out-Host
     return $LASTEXITCODE
 }
 
