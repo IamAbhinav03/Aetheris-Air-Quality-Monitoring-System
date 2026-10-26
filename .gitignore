@@ -1,9 +1,32 @@
-/telegraf/telegraf.log
-/influxdb3/
-./mosquitto/data
-./mosquitto/log
-*venv
-.git
-*.db
+# -----------------------------------------------------------------------------
+# Local configuration & secrets
+# -----------------------------------------------------------------------------
+.env
+AetherisSensorV1/secrets.yaml
+
+# -----------------------------------------------------------------------------
+# Generated runtime data
+# -----------------------------------------------------------------------------
+mosquitto/config/passwd
+mosquitto/data/
+mosquitto/log/
+influxdb3/
+telegraf/telegraf.log
+
+# -----------------------------------------------------------------------------
+# ESPHome build output
+# -----------------------------------------------------------------------------
+AetherisSensorV1/.esphome/
+AetherisSensorV1/build/
+AetherisSensorV1/firmware/
+
+# -----------------------------------------------------------------------------
+# Misc
+# -----------------------------------------------------------------------------
 *.log
-*.env
+*.db
+*venv
+**/__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
