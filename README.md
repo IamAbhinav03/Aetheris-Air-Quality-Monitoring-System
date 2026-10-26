@@ -278,6 +278,7 @@ AetherisSensorV1/
 | Air node stuck on Wi-Fi | Join the `aetheris-xxxxxx` hotspot (password in `secrets.yaml`) and open <http://192.168.4.1/>. |
 | ESPHome build fails on `!secret` | Run the setup script, or copy `secrets.example.yaml` to `secrets.yaml`. |
 | Docker Desktop reports `unable to start` or `read-only file system` | Free disk space on the host, then restart Docker Desktop. A full disk makes the Docker VM read-only. |
+| Grafana login fails with "unknown error occurred" | Restart Docker Desktop. After a WSL restart its port relay can keep accepting connections on port 3000 and then drop them, which the login form reports as a generic error. |
 
 ## License
 
