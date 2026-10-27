@@ -279,6 +279,7 @@ AetherisSensorV1/
 | ESPHome build fails on `!secret` | Run the setup script, or copy `secrets.example.yaml` to `secrets.yaml`. |
 | Docker Desktop reports `unable to start` or `read-only file system` | Free disk space on the host, then restart Docker Desktop. A full disk makes the Docker VM read-only. |
 | Grafana login fails with "unknown error occurred" | Restart Docker Desktop. After a WSL restart its port relay can keep accepting connections on port 3000 and then drop them, which the login form reports as a generic error. |
+| Panels show "No data" with a red error icon | Hover the icon for the real message. If you edited a dashboard file, note that the home dashboard (`/d/dashboard-home-dashboard/`) is a copy loaded when Grafana starts, so it keeps the old queries until `docker compose restart grafana`. The provisioned dashboard at `/d/aetheris-air-quality/` updates within 30 seconds. |
 
 ## License
 
