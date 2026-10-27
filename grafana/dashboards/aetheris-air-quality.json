@@ -59,7 +59,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT avg(pm25) AS \"PM2.5\" FROM air_quality WHERE $__timeFilter(time) AND ('${device}' = '%' OR device = '${device}')",
+          "rawSql": "SELECT time, pm25 AS \"PM2.5\" FROM air_quality WHERE $__timeFilter(time) AND (${device:sqlstring} = '%' OR device = ${device:sqlstring}) ORDER BY time",
           "refId": "A"
         }
       ],
@@ -106,7 +106,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT avg(pm10) AS \"PM10\" FROM air_quality WHERE $__timeFilter(time) AND ('${device}' = '%' OR device = '${device}')",
+          "rawSql": "SELECT time, pm10 AS \"PM10\" FROM air_quality WHERE $__timeFilter(time) AND (${device:sqlstring} = '%' OR device = ${device:sqlstring}) ORDER BY time",
           "refId": "A"
         }
       ],
@@ -152,7 +152,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT avg(pm1) AS \"PM1.0\" FROM air_quality WHERE $__timeFilter(time) AND ('${device}' = '%' OR device = '${device}')",
+          "rawSql": "SELECT time, pm1 AS \"PM1.0\" FROM air_quality WHERE $__timeFilter(time) AND (${device:sqlstring} = '%' OR device = ${device:sqlstring}) ORDER BY time",
           "refId": "A"
         }
       ],
@@ -198,7 +198,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT avg(eco2) AS \"eCO2\" FROM air_quality WHERE $__timeFilter(time) AND ('${device}' = '%' OR device = '${device}')",
+          "rawSql": "SELECT time, eco2 AS \"eCO2\" FROM air_quality WHERE $__timeFilter(time) AND (${device:sqlstring} = '%' OR device = ${device:sqlstring}) ORDER BY time",
           "refId": "A"
         }
       ],
@@ -244,7 +244,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT avg(tvoc) AS \"TVOC\" FROM air_quality WHERE $__timeFilter(time) AND ('${device}' = '%' OR device = '${device}')",
+          "rawSql": "SELECT time, tvoc AS \"TVOC\" FROM air_quality WHERE $__timeFilter(time) AND (${device:sqlstring} = '%' OR device = ${device:sqlstring}) ORDER BY time",
           "refId": "A"
         }
       ],
@@ -290,7 +290,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT avg(temperature) AS \"Temperature\" FROM air_quality WHERE $__timeFilter(time) AND ('${device}' = '%' OR device = '${device}')",
+          "rawSql": "SELECT time, temperature AS \"Temperature\" FROM air_quality WHERE $__timeFilter(time) AND (${device:sqlstring} = '%' OR device = ${device:sqlstring}) ORDER BY time",
           "refId": "A"
         }
       ],
@@ -335,7 +335,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT avg(humidity) AS \"Humidity\" FROM air_quality WHERE $__timeFilter(time) AND ('${device}' = '%' OR device = '${device}')",
+          "rawSql": "SELECT time, humidity AS \"Humidity\" FROM air_quality WHERE $__timeFilter(time) AND (${device:sqlstring} = '%' OR device = ${device:sqlstring}) ORDER BY time",
           "refId": "A"
         }
       ],
@@ -385,7 +385,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT $__dateBin(time) AS time, avg(pm1) AS \"PM1.0\" FROM air_quality WHERE $__timeFilter(time) AND ('${device}' = '%' OR device = '${device}') GROUP BY $__dateBin(time) ORDER BY time",
+          "rawSql": "SELECT $__dateBin(time) AS time, avg(pm1) AS \"PM1.0\" FROM air_quality WHERE $__timeFilter(time) AND (${device:sqlstring} = '%' OR device = ${device:sqlstring}) GROUP BY $__dateBin(time) ORDER BY time",
           "refId": "A"
         },
         {
@@ -393,7 +393,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT $__dateBin(time) AS time, avg(pm25) AS \"PM2.5\" FROM air_quality WHERE $__timeFilter(time) AND ('${device}' = '%' OR device = '${device}') GROUP BY $__dateBin(time) ORDER BY time",
+          "rawSql": "SELECT $__dateBin(time) AS time, avg(pm25) AS \"PM2.5\" FROM air_quality WHERE $__timeFilter(time) AND (${device:sqlstring} = '%' OR device = ${device:sqlstring}) GROUP BY $__dateBin(time) ORDER BY time",
           "refId": "B"
         },
         {
@@ -401,7 +401,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT $__dateBin(time) AS time, avg(pm10) AS \"PM10\" FROM air_quality WHERE $__timeFilter(time) AND ('${device}' = '%' OR device = '${device}') GROUP BY $__dateBin(time) ORDER BY time",
+          "rawSql": "SELECT $__dateBin(time) AS time, avg(pm10) AS \"PM10\" FROM air_quality WHERE $__timeFilter(time) AND (${device:sqlstring} = '%' OR device = ${device:sqlstring}) GROUP BY $__dateBin(time) ORDER BY time",
           "refId": "C"
         }
       ],
@@ -451,7 +451,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT $__dateBin(time) AS time, avg(eco2) AS \"eCO2\" FROM air_quality WHERE $__timeFilter(time) AND ('${device}' = '%' OR device = '${device}') GROUP BY $__dateBin(time) ORDER BY time",
+          "rawSql": "SELECT $__dateBin(time) AS time, avg(eco2) AS \"eCO2\" FROM air_quality WHERE $__timeFilter(time) AND (${device:sqlstring} = '%' OR device = ${device:sqlstring}) GROUP BY $__dateBin(time) ORDER BY time",
           "refId": "A"
         }
       ],
@@ -501,7 +501,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT $__dateBin(time) AS time, avg(tvoc) AS \"TVOC\" FROM air_quality WHERE $__timeFilter(time) AND ('${device}' = '%' OR device = '${device}') GROUP BY $__dateBin(time) ORDER BY time",
+          "rawSql": "SELECT $__dateBin(time) AS time, avg(tvoc) AS \"TVOC\" FROM air_quality WHERE $__timeFilter(time) AND (${device:sqlstring} = '%' OR device = ${device:sqlstring}) GROUP BY $__dateBin(time) ORDER BY time",
           "refId": "A"
         }
       ],
@@ -551,7 +551,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT $__dateBin(time) AS time, avg(temperature) AS \"Temperature\" FROM air_quality WHERE $__timeFilter(time) AND ('${device}' = '%' OR device = '${device}') GROUP BY $__dateBin(time) ORDER BY time",
+          "rawSql": "SELECT $__dateBin(time) AS time, avg(temperature) AS \"Temperature\" FROM air_quality WHERE $__timeFilter(time) AND (${device:sqlstring} = '%' OR device = ${device:sqlstring}) GROUP BY $__dateBin(time) ORDER BY time",
           "refId": "A"
         }
       ],
@@ -603,7 +603,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT $__dateBin(time) AS time, avg(humidity) AS \"Humidity\" FROM air_quality WHERE $__timeFilter(time) AND ('${device}' = '%' OR device = '${device}') GROUP BY $__dateBin(time) ORDER BY time",
+          "rawSql": "SELECT $__dateBin(time) AS time, avg(humidity) AS \"Humidity\" FROM air_quality WHERE $__timeFilter(time) AND (${device:sqlstring} = '%' OR device = ${device:sqlstring}) GROUP BY $__dateBin(time) ORDER BY time",
           "refId": "A"
         }
       ],
@@ -653,7 +653,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT $__dateBin(time) AS time, avg(wifi_dbm) AS \"WiFi signal\" FROM air_quality WHERE $__timeFilter(time) AND ('${device}' = '%' OR device = '${device}') GROUP BY $__dateBin(time) ORDER BY time",
+          "rawSql": "SELECT $__dateBin(time) AS time, avg(wifi_dbm) AS \"WiFi signal\" FROM air_quality WHERE $__timeFilter(time) AND (${device:sqlstring} = '%' OR device = ${device:sqlstring}) GROUP BY $__dateBin(time) ORDER BY time",
           "refId": "A"
         }
       ],
