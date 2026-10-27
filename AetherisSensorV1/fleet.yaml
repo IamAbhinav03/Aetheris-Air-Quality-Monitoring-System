@@ -1,0 +1,829 @@
+# ============================================================
+# Aetheris fleet firmware
+#
+# ONE firmware image for the whole fleet. `name_add_mac_suffix`
+# gives every board a unique name (aetheris-1a2b3c) at runtime,
+# and the MQTT topic is built from that name. Flash the same
+# binary to every air node.
+#
+# Wi-Fi / MQTT / OTA credentials live in secrets.yaml.
+# Build and deploy with:
+#   ./scripts/fleet.sh build
+#   ./scripts/fleet.sh deploy --devices devices.csv
+# ============================================================
+
+substitutions:
+  devicename: aetheris
+  friendly_name: Aetheris Air Quality Monitor
+
+esphome:
+  name: ${devicename}
+  friendly_name: ${friendly_name}
+  # Appends the last 3 bytes of the MAC address, e.g. aetheris-1a2b3c.
+  name_add_mac_suffix: true
+  project:
+    name: aetheris.airnode
+    version: "1.0"
+
+# ============================================================
+# ESP32-C3
+# ============================================================
+
+esp32:
+  variant: esp32c3
+  framework:
+    type: esp-idf
+
+# ============================================================
+# Logging
+# ============================================================
+
+logger:
+  level: INFO
+  # The PMS7003 uses GPIO20/21, which are UART0's default pins on the
+  # ESP32-C3. Send logs (and Improv) over the native USB Serial/JTAG
+  # port instead, so the sensor UART is free.
+  hardware_uart: USB_SERIAL_JTAG
+
+# ============================================================
+# Home Assistant API
+# ============================================================
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+  reboot_timeout: 0s
+
+# ============================================================
+# OTA
+# ============================================================
+
+ota:
+  - platform: esphome
+    # Reuses the native API encryption key above (recommended).
+    encryption:
+
+# ============================================================
+# WiFi
+# ============================================================
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Keep the device from becoming unavailable while WiFi
+  # is temporarily disconnected.
+  reboot_timeout: 0s
+
+  # Fallback hotspot: connect to "aetheris-xxxxxx" and open
+  # http://192.168.4.1/ to change Wi-Fi or upload new firmware.
+  ap:
+    password: !secret wifi_ap_password
+
+# Wi-Fi provisioning for devices that are not pre-provisioned.
+# - Improv over USB:  https://www.esphome.io/components/improv_serial/
+# - Improv over BLE:  use ESP Web Tools or the ESPHome app
+# - Captive portal:   join the fallback hotspot after 90 seconds
+improv_serial:
+improv_ble:
+  authorizer: none
+captive_portal:
+
+# ============================================================
+# MQTT
+# ============================================================
+
+mqtt:
+  # IP/hostname of the machine running docker compose.
+  broker: !secret mqtt_broker
+  port: 1883
+
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+
+  reboot_timeout: 0s
+
+  on_connect:
+    - logger.log: "Connected to MQTT broker"
+
+  on_disconnect:
+    - logger.log: "MQTT connection lost"
+
+# ============================================================
+# Time
+# ============================================================
+
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: !secret timezone
+
+# ============================================================
+# I2C
+#
+# XIAO ESP32-C3:
+#   D4 = GPIO6 = SDA
+#   D5 = GPIO7 = SCL
+#
+# Devices:
+#   SGP30  = 0x58
+#   BME680 = 0x77
+#   SH1106 = 0x3C
+# ============================================================
+
+i2c:
+  id: i2c_bus
+  sda: GPIO6
+  scl: GPIO7
+  scan: true
+
+# ============================================================
+# UART
+#
+# XIAO ESP32-C3:
+#   D6 = GPIO21 = TX
+#   D7 = GPIO20 = RX
+#
+# PMS7003:
+#   PMS TX -> XIAO D7 / GPIO20
+#   PMS RX -> XIAO D6 / GPIO21
+# ============================================================
+
+uart:
+  id: pms_uart
+  tx_pin: GPIO21
+  rx_pin: GPIO20
+  baud_rate: 9600
+
+# ============================================================
+# SENSORS
+# ============================================================
+
+sensor:
+
+  # ----------------------------------------------------------
+  # PMS7003
+  # ----------------------------------------------------------
+
+  - platform: pmsx003
+    type: PMSX003
+    uart_id: pms_uart
+
+    pm_1_0:
+      id: pm1
+      name: "PM1.0"
+      unit_of_measurement: "µg/m³"
+      device_class: pm1
+      state_class: measurement
+
+    pm_2_5:
+      id: pm25
+      name: "PM2.5"
+      unit_of_measurement: "µg/m³"
+      device_class: pm25
+      state_class: measurement
+
+    pm_10_0:
+      id: pm10
+      name: "PM10"
+      unit_of_measurement: "µg/m³"
+      device_class: pm10
+      state_class: measurement
+
+    update_interval: 60s
+
+  # ----------------------------------------------------------
+  # SGP30
+  # ----------------------------------------------------------
+
+  - platform: sgp30
+
+    eco2:
+      id: eco2
+      name: "eCO2"
+      unit_of_measurement: "ppm"
+      device_class: carbon_dioxide
+      state_class: measurement
+
+    tvoc:
+      id: tvoc
+      name: "TVOC"
+      unit_of_measurement: "ppb"
+      state_class: measurement
+
+    store_baseline: true
+    update_interval: 60s
+
+  # ----------------------------------------------------------
+  # BME680
+  # ----------------------------------------------------------
+
+  - platform: bme680
+    address: 0x77
+
+    temperature:
+      id: temp
+      name: "Temperature"
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+
+    humidity:
+      id: hum
+      name: "Humidity"
+      unit_of_measurement: "%"
+      device_class: humidity
+      state_class: measurement
+
+    update_interval: 60s
+
+  # ----------------------------------------------------------
+  # WiFi signal
+  # ----------------------------------------------------------
+
+  - platform: wifi_signal
+    id: wifi_signal_db
+    name: "WiFi Signal"
+    unit_of_measurement: "dBm"
+    device_class: signal_strength
+    state_class: measurement
+    update_interval: 30s
+
+# ============================================================
+# DISPLAY PAGE STATE
+# ============================================================
+
+globals:
+  - id: page
+    type: int
+    restore_value: no
+    initial_value: "0"
+
+# ============================================================
+# FONTS
+# ============================================================
+
+font:
+
+  - file: "fonts/profont17.bdf"
+    id: pro_font17
+    size: 17
+
+  - file: "fonts/profont15.bdf"
+    id: pro_font15
+    size: 15
+
+  - file: "fonts/profont12.bdf"
+    id: pro_font12
+    size: 12
+
+  - file: "fonts/profont10.bdf"
+    id: pro_font10
+    size: 10
+    glyphs:
+      - " "
+      - "!"
+      - "%"
+      - "("
+      - ")"
+      - "+"
+      - "-"
+      - "."
+      - "/"
+      - ":"
+      - "0"
+      - "1"
+      - "2"
+      - "3"
+      - "4"
+      - "5"
+      - "6"
+      - "7"
+      - "8"
+      - "9"
+      - "A"
+      - "B"
+      - "C"
+      - "D"
+      - "E"
+      - "F"
+      - "G"
+      - "H"
+      - "I"
+      - "J"
+      - "K"
+      - "L"
+      - "M"
+      - "N"
+      - "O"
+      - "P"
+      - "Q"
+      - "R"
+      - "S"
+      - "T"
+      - "U"
+      - "V"
+      - "W"
+      - "X"
+      - "Y"
+      - "Z"
+      - "a"
+      - "b"
+      - "c"
+      - "d"
+      - "e"
+      - "f"
+      - "g"
+      - "h"
+      - "i"
+      - "j"
+      - "k"
+      - "l"
+      - "m"
+      - "n"
+      - "o"
+      - "p"
+      - "q"
+      - "r"
+      - "s"
+      - "t"
+      - "u"
+      - "v"
+      - "w"
+      - "x"
+      - "y"
+      - "z"
+      - "°"
+      - "µ"
+      - "³"
+
+# ============================================================
+# OLED DISPLAY
+# ============================================================
+
+display:
+
+  - platform: ssd1306_i2c
+    id: my_display
+    model: "SH1106 128x64"
+    address: 0x3C
+    update_interval: 1s
+
+    pages:
+
+      # ======================================================
+      # PAGE 1 - PARTICULATE MATTER
+      # ======================================================
+
+      - id: page_pm
+
+        lambda: |-
+
+          const int W = it.get_width();
+          const int H = it.get_height();
+
+          const int top_h = 48;
+          const int col_w = W / 3;
+
+          const int cx0 = col_w / 2;
+          const int cx1 = col_w + col_w / 2;
+          const int cx2 = 2 * col_w + col_w / 2;
+
+          // Vertical separators
+          it.line(col_w, 0, col_w, top_h - 1);
+          it.line(2 * col_w, 0, 2 * col_w, top_h - 1);
+
+          // Headers
+          it.print(
+            cx0, 4,
+            id(pro_font10),
+            TextAlign::TOP_CENTER,
+            "PM1.0"
+          );
+
+          it.print(
+            cx1, 4,
+            id(pro_font10),
+            TextAlign::TOP_CENTER,
+            "PM2.5"
+          );
+
+          it.print(
+            cx2, 4,
+            id(pro_font10),
+            TextAlign::TOP_CENTER,
+            "PM10"
+          );
+
+          // Values
+          it.printf(
+            cx0, 18,
+            id(pro_font12),
+            TextAlign::TOP_CENTER,
+            "%.1f",
+            id(pm1).has_state() ? id(pm1).state : 0.0
+          );
+
+          it.printf(
+            cx1, 18,
+            id(pro_font12),
+            TextAlign::TOP_CENTER,
+            "%.1f",
+            id(pm25).has_state() ? id(pm25).state : 0.0
+          );
+
+          it.printf(
+            cx2, 18,
+            id(pro_font12),
+            TextAlign::TOP_CENTER,
+            "%.1f",
+            id(pm10).has_state() ? id(pm10).state : 0.0
+          );
+
+          // Units
+          it.print(
+            cx0, 30,
+            id(pro_font10),
+            TextAlign::TOP_CENTER,
+            "µg/m³"
+          );
+
+          it.print(
+            cx1, 30,
+            id(pro_font10),
+            TextAlign::TOP_CENTER,
+            "µg/m³"
+          );
+
+          it.print(
+            cx2, 30,
+            id(pro_font10),
+            TextAlign::TOP_CENTER,
+            "µg/m³"
+          );
+
+          // Bottom separator
+          it.line(0, 48, W - 1, 48);
+
+          // AQI category based on PM2.5
+          const char *aqi_text = "AQI --";
+
+          if (id(pm25).has_state()) {
+
+            const float v = id(pm25).state;
+
+            if (v <= 12.0)
+              aqi_text = "AQI Good";
+            else if (v <= 35.4)
+              aqi_text = "AQI Moderate";
+            else if (v <= 55.4)
+              aqi_text = "AQI Unhealthy SG";
+            else if (v <= 150.4)
+              aqi_text = "AQI Unhealthy";
+            else if (v <= 250.4)
+              aqi_text = "AQI Very Unhealthy";
+            else
+              aqi_text = "AQI Hazardous";
+          }
+
+          it.print(
+            2, 52,
+            id(pro_font10),
+            aqi_text
+          );
+
+          // WiFi signal bars
+          int bars = 0;
+
+          if (id(wifi_signal_db).has_state()) {
+
+            const float dbm = id(wifi_signal_db).state;
+
+            if (dbm > -50.0)
+              bars = 4;
+            else if (dbm > -60.0)
+              bars = 3;
+            else if (dbm > -70.0)
+              bars = 2;
+            else if (dbm > -80.0)
+              bars = 1;
+          }
+
+          const int bx = W - 22;
+
+          for (int i = 0; i < 4; i++) {
+
+            const int bar_h = 3 + i * 3;
+            const int by = 63 - bar_h;
+
+            if (i < bars)
+              it.filled_rectangle(
+                bx + i * 4,
+                by,
+                3,
+                bar_h
+              );
+            else
+              it.rectangle(
+                bx + i * 4,
+                by,
+                3,
+                bar_h
+              );
+          }
+
+
+      # ======================================================
+      # PAGE 2 - SGP30
+      # ======================================================
+
+      - id: page_sgp
+
+        lambda: |-
+
+          const int W = it.get_width();
+
+          const int col_w = W / 2;
+          const int cx0 = col_w / 2;
+          const int cx1 = col_w + col_w / 2;
+
+          // eCO2
+          it.print(
+            cx0, 4,
+            id(pro_font10),
+            TextAlign::TOP_CENTER,
+            "eCO2"
+          );
+
+          it.printf(
+            cx0, 18,
+            id(pro_font12),
+            TextAlign::TOP_CENTER,
+            "%.0f",
+            id(eco2).has_state() ? id(eco2).state : 0.0
+          );
+
+          it.print(
+            cx0, 30,
+            id(pro_font10),
+            TextAlign::TOP_CENTER,
+            "ppm"
+          );
+
+          // TVOC
+          it.print(
+            cx1, 4,
+            id(pro_font10),
+            TextAlign::TOP_CENTER,
+            "TVOC"
+          );
+
+          it.printf(
+            cx1, 18,
+            id(pro_font12),
+            TextAlign::TOP_CENTER,
+            "%.1f",
+            id(tvoc).has_state() ? id(tvoc).state : 0.0
+          );
+
+          it.print(
+            cx1, 30,
+            id(pro_font10),
+            TextAlign::TOP_CENTER,
+            "ppb"
+          );
+
+          // Bottom separator
+          it.line(0, 48, W - 1, 48);
+
+          // AQI category
+          const char *aqi_text = "AQI --";
+
+          if (id(pm25).has_state()) {
+
+            const float v = id(pm25).state;
+
+            if (v <= 12.0)
+              aqi_text = "AQI Good";
+            else if (v <= 35.4)
+              aqi_text = "AQI Moderate";
+            else if (v <= 55.4)
+              aqi_text = "AQI Unhealthy SG";
+            else if (v <= 150.4)
+              aqi_text = "AQI Unhealthy";
+            else if (v <= 250.4)
+              aqi_text = "AQI Very Unhealthy";
+            else
+              aqi_text = "AQI Hazardous";
+          }
+
+          it.print(
+            2, 52,
+            id(pro_font10),
+            aqi_text
+          );
+
+          // WiFi signal bars
+          int bars = 0;
+
+          if (id(wifi_signal_db).has_state()) {
+
+            const float dbm = id(wifi_signal_db).state;
+
+            if (dbm > -50.0)
+              bars = 4;
+            else if (dbm > -60.0)
+              bars = 3;
+            else if (dbm > -70.0)
+              bars = 2;
+            else if (dbm > -80.0)
+              bars = 1;
+          }
+
+          const int bx = W - 22;
+
+          for (int i = 0; i < 4; i++) {
+
+            const int bar_h = 3 + i * 3;
+            const int by = 63 - bar_h;
+
+            if (i < bars)
+              it.filled_rectangle(
+                bx + i * 4,
+                by,
+                3,
+                bar_h
+              );
+            else
+              it.rectangle(
+                bx + i * 4,
+                by,
+                3,
+                bar_h
+              );
+          }
+
+
+      # ======================================================
+      # PAGE 3 - ENVIRONMENT
+      # ======================================================
+
+      - id: page_env
+
+        lambda: |-
+
+          const int W = it.get_width();
+
+          // Temperature
+          it.print(
+            W / 4, 4,
+            id(pro_font10),
+            TextAlign::TOP_CENTER,
+            "Temperature"
+          );
+
+          it.printf(
+            W / 4, 18,
+            id(pro_font12),
+            TextAlign::TOP_CENTER,
+            "%.2f",
+            id(temp).has_state() ? id(temp).state : 0.0
+          );
+
+          it.print(
+            W / 4, 30,
+            id(pro_font10),
+            TextAlign::TOP_CENTER,
+            "°C"
+          );
+
+          // Humidity
+          it.print(
+            3 * W / 4, 4,
+            id(pro_font10),
+            TextAlign::TOP_CENTER,
+            "Humidity"
+          );
+
+          it.printf(
+            3 * W / 4, 18,
+            id(pro_font12),
+            TextAlign::TOP_CENTER,
+            "%.1f",
+            id(hum).has_state() ? id(hum).state : 0.0
+          );
+
+          it.print(
+            3 * W / 4, 30,
+            id(pro_font10),
+            TextAlign::TOP_CENTER,
+            "%"
+          );
+
+          // Bottom separator
+          it.line(0, 48, W - 1, 48);
+
+          // AQI category
+          const char *aqi_text = "AQI --";
+
+          if (id(pm25).has_state()) {
+
+            const float v = id(pm25).state;
+
+            if (v <= 12.0)
+              aqi_text = "AQI Good";
+            else if (v <= 35.4)
+              aqi_text = "AQI Moderate";
+            else if (v <= 55.4)
+              aqi_text = "AQI Unhealthy SG";
+            else if (v <= 150.4)
+              aqi_text = "AQI Unhealthy";
+            else if (v <= 250.4)
+              aqi_text = "AQI Very Unhealthy";
+            else
+              aqi_text = "AQI Hazardous";
+          }
+
+          it.print(
+            2, 52,
+            id(pro_font10),
+            aqi_text
+          );
+
+          // WiFi signal bars
+          int bars = 0;
+
+          if (id(wifi_signal_db).has_state()) {
+
+            const float dbm = id(wifi_signal_db).state;
+
+            if (dbm > -50.0)
+              bars = 4;
+            else if (dbm > -60.0)
+              bars = 3;
+            else if (dbm > -70.0)
+              bars = 2;
+            else if (dbm > -80.0)
+              bars = 1;
+          }
+
+          const int bx = W - 22;
+
+          for (int i = 0; i < 4; i++) {
+
+            const int bar_h = 3 + i * 3;
+            const int by = 63 - bar_h;
+
+            if (i < bars)
+              it.filled_rectangle(
+                bx + i * 4,
+                by,
+                3,
+                bar_h
+              );
+            else
+              it.rectangle(
+                bx + i * 4,
+                by,
+                3,
+                bar_h
+              );
+          }
+
+# ============================================================
+# MQTT STATE PUBLISH
+# ============================================================
+
+interval:
+
+  - interval: 15s
+    then:
+
+      - mqtt.publish_json:
+          # Unique per board: airnode/aetheris-1a2b3c/state
+          # App.get_name() includes the MAC suffix at runtime.
+          topic: !lambda |-
+            return "airnode/" + App.get_name() + "/state";
+
+          payload: |-
+            root["pm1"] = id(pm1).state;
+            root["pm25"] = id(pm25).state;
+            root["pm10"] = id(pm10).state;
+
+            root["eco2"] = id(eco2).state;
+            root["tvoc"] = id(tvoc).state;
+
+            root["temperature"] = id(temp).state;
+            root["humidity"] = id(hum).state;
+
+            root["wifi_dbm"] = id(wifi_signal_db).state;
+
+# ============================================================
+# DISPLAY PAGE ROTATION
+# ============================================================
+
+  - interval: 5s
+    then:
+
+      - display.page.show_next: my_display
+      - component.update: my_display
