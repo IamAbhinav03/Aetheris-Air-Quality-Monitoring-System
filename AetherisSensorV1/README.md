@@ -87,6 +87,16 @@ Every board needs the firmware once over USB. Use any of:
 
 - ESP Web Tools with the compiled `firmware.factory.bin`.
 
+Without Python or ESPHome installed, flash the exported factory image with the
+standalone [esptool](https://github.com/espressif/esptool/releases) binary:
+
+```powershell
+.\esptool.exe --chip esp32c3 -p COM5 -b 460800 write_flash 0x0 firmware\firmware.factory.bin
+```
+
+A factory image contains the bootloader, partition table and app, so it always
+goes to offset `0x0`. Later updates use `firmware.ota.bin` over Wi-Fi.
+
 After the first boot the node joins the Wi-Fi from `secrets.yaml`. If it cannot,
 it opens a fallback hotspot named `aetheris-xxxxxx` (password is
 `wifi_ap_password`). Join it and open <http://192.168.4.1/> to enter Wi-Fi
@@ -136,3 +146,11 @@ and Grafana is the MAC-based device name (`aetheris-1a2b3c`).
   keep `improv_serial:` + `captive_portal:`.
 - Changing Wi-Fi for the whole fleet: edit `secrets.yaml`, rebuild, then
   `deploy`. For a single node, use the captive portal.
+- The PMS7003 needs about a minute to spin up after a reset, so the first few
+  `state` messages carry `null` for PM1.0/PM2.5/PM10. Those samples land in
+  InfluxDB as gaps, which is expected.
+- Don't watch the log with a plain serial terminal that asserts both DTR and
+  RTS: on the C3 that combination holds the chip in download mode and the node
+  stops sending. Use `esphome logs`, or if a terminal already did it, reset with
+  `esptool.exe --chip esp32c3 -p COM5 --after hard-reset flash-id` or replug
+  the board.
